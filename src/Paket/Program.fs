@@ -362,3 +362,7 @@ let main() =
             traceErrorfn "StackTrace:%s  %s" Environment.NewLine exn.StackTrace
 
 main()
+
+if Debugger.IsAttached then
+    printfn "Press ENTER"
+    Console.ReadLine() |> ignore

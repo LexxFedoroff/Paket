@@ -16,6 +16,7 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
     <Win32Resource>paket.res</Win32Resource>
+    <WarningLevel>5</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -24,7 +25,6 @@
     <Tailcalls>false</Tailcalls>
     <OutputPath>..\..\bin</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <WarningLevel>3</WarningLevel>
     <DocumentationFile>
     </DocumentationFile>
     <StartArguments>update</StartArguments>
@@ -46,6 +46,7 @@
     <StartWorkingDirectory>d:\code\paketbug</StartWorkingDirectory>
     <StartWorkingDirectory>d:\code\paketrepro</StartWorkingDirectory>
     <StartWorkingDirectory>d:\code\paketbug</StartWorkingDirectory>
+    <StartWorkingDirectory>E:\TMP\PaketTestRepo\</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -53,11 +54,9 @@
     <Tailcalls>true</Tailcalls>
     <OutputPath>..\..\bin</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
-    <WarningLevel>3</WarningLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DocumentationFile>
     </DocumentationFile>
-    <StartArguments>update</StartArguments>
-    <StartWorkingDirectory>D:\code\PaketKopie</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
