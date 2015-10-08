@@ -125,7 +125,7 @@ module DependenciesFileParser =
         |> List.toArray
 
 
-    let private parseGitSource trimmed origin originTxt = 
+    let private parseGitHubSource trimmed origin originTxt = 
         let parts = parseDependencyLine trimmed
         
         let getParts (projectSpec : string) = 
@@ -138,6 +138,10 @@ module DependenciesFileParser =
         | [| _; projectSpec; fileSpec |] -> origin, getParts projectSpec, fileSpec, None
         | [| _; projectSpec |] -> origin, getParts projectSpec, Constants.FullProjectSourceFileName, None
         | _ -> failwithf "invalid %s specification:%s     %s" originTxt Environment.NewLine trimmed
+
+    let private parseGitSource (trimmed:string) =
+        // FIXME parse commit/branch/tag from spec
+        SingleSourceFileOrigin.Git(trimmed.Trim()), ("OWNER", "PROJECT", None), Constants.FullProjectSourceFileName, None
 
     let private parseHttpSource trimmed = 
         let parts = parseDependencyLine trimmed
@@ -222,9 +226,11 @@ module DependenciesFileParser =
         | String.StartsWith "copy_local" trimmed -> ParserOptions(ParserOption.CopyLocal(trimmed.Replace(":","").Trim() = "true"))
         | String.StartsWith "condition" trimmed -> ParserOptions(ParserOption.ReferenceCondition(trimmed.Replace(":","").Trim().ToUpper()))
         | String.StartsWith "gist" _ as trimmed ->
-            SourceFile(parseGitSource trimmed SingleSourceFileOrigin.GistLink "gist")
+            SourceFile(parseGitHubSource trimmed SingleSourceFileOrigin.GistLink "gist")
         | String.StartsWith "github" _ as trimmed  ->
-            SourceFile(parseGitSource trimmed SingleSourceFileOrigin.GitHubLink "github")
+            SourceFile(parseGitHubSource trimmed SingleSourceFileOrigin.GitHubLink "github")
+        | String.StartsWith "git" trimmed ->
+            SourceFile(parseGitSource trimmed)
         | String.StartsWith "http" _ as trimmed  ->
             SourceFile(parseHttpSource trimmed)
         | String.StartsWith "//" _ -> Empty(line)
