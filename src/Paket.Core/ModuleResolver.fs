@@ -10,6 +10,7 @@ type SingleSourceFileOrigin =
 | GitHubLink 
 | GistLink
 | HttpLink of string
+| Git of string
 
 // Represents details on a dependent source file.
 type UnresolvedSourceFile =

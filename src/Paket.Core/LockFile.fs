@@ -115,6 +115,8 @@ module LockFileSerializer =
                         updateHasReported.Add GistLink
                     yield sprintf "  remote: %s/%s" owner project
                     yield "  specs:"
+                | Git url -> 
+                    System.Diagnostics.Debugger.Break()
                 | HttpLink url ->
                     if not (updateHasReported.Contains(HttpLink(""))) then
                         yield "HTTP"
@@ -295,6 +297,9 @@ module LockFileParser =
                                                 Name = path 
                                                 AuthKey = authKey } :: currentGroup.SourceFiles }::otherGroups
                         | _ -> failwith "invalid remote details."
+                    | Git url ->
+                        System.Diagnostics.Debugger.Break()
+                        failwith "FIXME"
                     | HttpLink x ->
                         match currentGroup.RemoteUrl |> Option.map(fun s -> s.Split '/' |> Array.toList) with
                         | Some [ protocol; _; domain; ] ->

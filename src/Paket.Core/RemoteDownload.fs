@@ -51,6 +51,9 @@ let getSHA1OfBranch origin owner project branch authKey =
             | None -> 
                 failwithf "Could not find hash for %s" url
                 return ""
+        | ModuleResolver.SingleSourceFileOrigin.Git url ->
+            System.Diagnostics.Debugger.Break()
+            return "FIXME"
         | ModuleResolver.SingleSourceFileOrigin.HttpLink _ -> return ""
     }
 
@@ -73,6 +76,9 @@ let downloadDependenciesFile(force,rootPath,groupName,parserF,remoteFile:ModuleR
             rawFileUrl remoteFile.Owner remoteFile.Project remoteFile.Commit dependenciesFileName
         | ModuleResolver.GistLink -> 
             rawGistFileUrl remoteFile.Owner remoteFile.Project dependenciesFileName
+        | ModuleResolver.Git url ->
+            System.Diagnostics.Debugger.Break()
+            failwith "FIXME"
         | ModuleResolver.HttpLink url -> 
             url.Replace(remoteFile.Name,Constants.DependenciesFileName)
 
@@ -169,6 +175,10 @@ let downloadRemoteFiles(remoteFile:ResolvedSourceFile,destination) = async {
 
         let source = Path.Combine(projectPath, sprintf "%s-%s" remoteFile.Project remoteFile.Commit)
         DirectoryCopy(source,projectPath,true)
+    | SingleSourceFileOrigin.Git url, Constants.FullProjectSourceFileName -> 
+        System.Diagnostics.Debugger.Break()
+    | SingleSourceFileOrigin.Git url, _ -> 
+        failwith "FIXME"
     | SingleSourceFileOrigin.GistLink, _ -> 
         let downloadUrl = rawGistFileUrl remoteFile.Owner remoteFile.Project remoteFile.Name
         let authentication = auth remoteFile.AuthKey downloadUrl
