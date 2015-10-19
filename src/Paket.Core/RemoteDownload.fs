@@ -25,7 +25,6 @@ let private auth key url =
     key
     |> Option.bind (fun key -> ConfigFile.GetAuthenticationForUrl key url)
 
-
 // Gets the sha1 of a branch
 let getSHA1OfBranch origin owner project branch authKey = 
     async { 
@@ -52,8 +51,7 @@ let getSHA1OfBranch origin owner project branch authKey =
                 failwithf "Could not find hash for %s" url
                 return ""
         | ModuleResolver.SingleSourceFileOrigin.Git url ->
-            System.Diagnostics.Debugger.Break()
-            return "FIXME"
+            return Git.getSha1 project url branch
         | ModuleResolver.SingleSourceFileOrigin.HttpLink _ -> return ""
     }
 
