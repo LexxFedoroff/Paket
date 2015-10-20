@@ -46,6 +46,4 @@ type private Repo(project, url) =
             clone url projectDir |> ignore
 
 let getSha1 project url branch = 
-    let hash = parseHash(branch, lsRemote(url))
-    System.Diagnostics.Debugger.Break()
-    hash
+    parseHash(branch, lsRemote(url))
