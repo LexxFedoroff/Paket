@@ -139,9 +139,11 @@ module DependenciesFileParser =
         | [| _; projectSpec |] -> origin, getParts projectSpec, Constants.FullProjectSourceFileName, None
         | _ -> failwithf "invalid %s specification:%s     %s" originTxt Environment.NewLine trimmed
 
-    let private parseGitSource (trimmed:string) =
+    let private parseGitSource (source:string) =
         // FIXME parse commit/branch/tag from spec
-        SingleSourceFileOrigin.Git(trimmed.Trim()), ("OWNER", "PROJECT", None), Constants.FullProjectSourceFileName, None
+        let url = source.Trim()
+        let name = Path.GetFileNameWithoutExtension url
+        SingleSourceFileOrigin.GitLink({ Url = url; Name = name}), ("OWNER", "PROJECT", None), Constants.FullProjectSourceFileName, None
 
     let private parseHttpSource trimmed = 
         let parts = parseDependencyLine trimmed

@@ -98,8 +98,8 @@
     <Compile Include="FrameworkHandling.fs" />
     <Compile Include="PlatformMatching.fs" />
     <Compile Include="Requirements.fs" />
-    <Compile Include="ModuleResolver.fs" />
     <Compile Include="Git.fs" />
+    <Compile Include="ModuleResolver.fs" />
     <Compile Include="RemoteDownload.fs" />
     <Compile Include="RemoteUpload.fs" />
     <Compile Include="PackageResolver.fs" />

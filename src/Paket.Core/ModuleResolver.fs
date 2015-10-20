@@ -10,7 +10,7 @@ type SingleSourceFileOrigin =
 | GitHubLink 
 | GistLink
 | HttpLink of string
-| Git of string
+| GitLink of Git.GitLink
 
 // Represents details on a dependent source file.
 type UnresolvedSourceFile =
@@ -51,7 +51,9 @@ type ResolvedSourceFile =
         let path = normalizePath (name.TrimStart('/'))
         let dir = 
             if groupName = Constants.MainDependencyGroup then
-                Path.Combine(root,Constants.PaketFilesFolderName, this.Owner, this.Project, path)
+                match this.Origin with
+                | GitLink link -> Path.Combine (root, Constants.PaketFilesFolderName, link.Name, path)
+                | _ -> Path.Combine(root,Constants.PaketFilesFolderName, this.Owner, this.Project, path)
             else
                 Path.Combine(root,Constants.PaketFilesFolderName, groupName.GetCompareString(), this.Owner, this.Project, path)
         let di = DirectoryInfo(dir)

@@ -50,8 +50,8 @@ let getSHA1OfBranch origin owner project branch authKey =
             | None -> 
                 failwithf "Could not find hash for %s" url
                 return ""
-        | ModuleResolver.SingleSourceFileOrigin.Git url ->
-            return Git.getSha1 project url branch
+        | ModuleResolver.SingleSourceFileOrigin.GitLink link ->
+            return Git.getSha1(link, branch)
         | ModuleResolver.SingleSourceFileOrigin.HttpLink _ -> return ""
     }
 
@@ -74,11 +74,9 @@ let downloadDependenciesFile(force,rootPath,groupName,parserF,remoteFile:ModuleR
             rawFileUrl remoteFile.Owner remoteFile.Project remoteFile.Commit dependenciesFileName
         | ModuleResolver.GistLink -> 
             rawGistFileUrl remoteFile.Owner remoteFile.Project dependenciesFileName
-        | ModuleResolver.Git url ->
-            System.Diagnostics.Debugger.Break()
-            failwith "FIXME"
         | ModuleResolver.HttpLink url -> 
             url.Replace(remoteFile.Name,Constants.DependenciesFileName)
+        | _ -> String.Empty
 
     let auth = 
         remoteFile.AuthKey
@@ -100,7 +98,10 @@ let downloadDependenciesFile(force,rootPath,groupName,parserF,remoteFile:ModuleR
     if exists then
         return parserF (File.ReadAllText(destination.FullName))
     else
-        let! result = lookupDocument(auth,url)
+        let! result = 
+            match remoteFile.Origin with
+            | GitLink link -> Git.getFile (link, remoteFile.Commit, dependenciesFileName)
+            | _ -> lookupDocument(auth,url)
 
         let text,depsFile =
             match result with
@@ -114,7 +115,8 @@ let downloadDependenciesFile(force,rootPath,groupName,parserF,remoteFile:ModuleR
         Directory.CreateDirectory(destination.FullName |> Path.GetDirectoryName) |> ignore
         File.WriteAllText(destination.FullName, text)
 
-        return depsFile }
+        return depsFile 
+}
 
 
 let ExtractZip(fileName : string, targetFolder) = 
@@ -173,9 +175,9 @@ let downloadRemoteFiles(remoteFile:ResolvedSourceFile,destination) = async {
 
         let source = Path.Combine(projectPath, sprintf "%s-%s" remoteFile.Project remoteFile.Commit)
         DirectoryCopy(source,projectPath,true)
-    | SingleSourceFileOrigin.Git url, Constants.FullProjectSourceFileName -> 
+    | SingleSourceFileOrigin.GitLink url, Constants.FullProjectSourceFileName -> 
         System.Diagnostics.Debugger.Break()
-    | SingleSourceFileOrigin.Git url, _ -> 
+    | SingleSourceFileOrigin.GitLink url, _ -> 
         failwith "FIXME"
     | SingleSourceFileOrigin.GistLink, _ -> 
         let downloadUrl = rawGistFileUrl remoteFile.Owner remoteFile.Project remoteFile.Name
