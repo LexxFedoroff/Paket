@@ -104,6 +104,7 @@ module LockFileSerializer =
                         yield "GITHUB"
                         updateHasReported.Remove (HttpLink "") |> ignore
                         updateHasReported.Remove GistLink |> ignore
+                        updateHasReported.Remove (GitLink(Git.GitLink.Empty)) |> ignore
                         updateHasReported.Add GitHubLink
                     yield sprintf "  remote: %s/%s" owner project
                     yield "  specs:"
@@ -112,12 +113,19 @@ module LockFileSerializer =
                         yield "GIST"
                         updateHasReported.Remove GitHubLink |> ignore
                         updateHasReported.Remove (HttpLink "") |> ignore
+                        updateHasReported.Remove (GitLink(Git.GitLink.Empty)) |> ignore
                         updateHasReported.Add GistLink
                     yield sprintf "  remote: %s/%s" owner project
                     yield "  specs:"
-                | GitLink url -> 
-                    System.Diagnostics.Debugger.Break()
-                    failwith "FIXME"
+                | GitLink link -> 
+                    if not (updateHasReported.Contains(GitLink(Git.GitLink.Empty))) then
+                        yield "GIT"
+                        updateHasReported.Remove GitHubLink |> ignore
+                        updateHasReported.Remove (HttpLink "") |> ignore
+                        updateHasReported.Remove (GitLink(Git.GitLink.Empty)) |> ignore
+                        updateHasReported.Add (GitLink(Git.GitLink.Empty))
+                    yield sprintf "  remote: %s" link.Url
+                    yield "  specs:"
                 | HttpLink url ->
                     if not (updateHasReported.Contains(HttpLink(""))) then
                         yield "HTTP"
@@ -176,6 +184,7 @@ module LockFileParser =
         | _, "GIST" -> RepositoryType "GIST"
         | _, "NUGET" -> RepositoryType "NUGET"
         | _, "GITHUB" -> RepositoryType "GITHUB"
+        | _, "GIT" -> RepositoryType "GIT"
         | Some "NUGET", String.StartsWith "remote:" trimmed -> Remote(PackageSource.Parse("source " + trimmed.Trim()).ToString())
         | _, String.StartsWith "remote:" trimmed -> Remote(trimmed.Trim())
         | _, String.StartsWith "GROUP" trimmed -> Group(trimmed.Replace("GROUP","").Trim())
@@ -201,6 +210,7 @@ module LockFileParser =
                 NugetDependency (trimmed,">= 0")
         | Some "NUGET", trimmed -> NugetPackage trimmed
         | Some "GITHUB", trimmed -> SourceFile(GitHubLink, trimmed)
+        | Some "GIT", trimmed -> SourceFile(GitLink(Git.GitLink.Empty), trimmed)
         | Some "GIST", trimmed -> SourceFile(GistLink, trimmed)
         | Some "HTTP", trimmed  -> SourceFile(HttpLink(String.Empty), trimmed)
         | Some _, _ -> failwithf "unknown repository type %s." line
@@ -298,9 +308,21 @@ module LockFileParser =
                                                 Name = path 
                                                 AuthKey = authKey } :: currentGroup.SourceFiles }::otherGroups
                         | _ -> failwith "invalid remote details."
-                    | GitLink url ->
-                        System.Diagnostics.Debugger.Break()
-                        failwith "FIXME"
+                    | GitLink _ ->
+                        let path, commit, authKey =
+                            match details.Split ' ' with
+                            | [| filePath; commit; authKey |] -> filePath, commit |> removeBrackets, (Some authKey)
+                            | [| filePath; commit |] -> filePath, commit |> removeBrackets, None
+                            | _ -> failwith "invalid file source details."
+                        { currentGroup with
+                            LastWasPackage = false
+                            SourceFiles = { Commit = commit
+                                            Owner = "OWNER"
+                                            Origin = origin
+                                            Project = "PROJECT"
+                                            Dependencies = Set.empty
+                                            Name = path 
+                                            AuthKey = None} :: currentGroup.SourceFiles }::otherGroups
                     | HttpLink x ->
                         match currentGroup.RemoteUrl |> Option.map(fun s -> s.Split '/' |> Array.toList) with
                         | Some [ protocol; _; domain; ] ->

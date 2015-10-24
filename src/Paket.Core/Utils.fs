@@ -67,12 +67,21 @@ let createDir path =
     with _ ->
         DirectoryCreateError path |> fail
 
+let rec private DeleteFileSystemInfo (fileSystemInfo:FileSystemInfo) =
+    match fileSystemInfo with
+    | :? DirectoryInfo as directoryInfo ->
+        for childInfo in directoryInfo.GetFileSystemInfos() do
+            DeleteFileSystemInfo(childInfo)
+    | _ -> 
+        fileSystemInfo.Attributes <- FileAttributes.Normal;
+        fileSystemInfo.Delete();
+
 /// Cleans a directory by deleting it and recreating it.
 let CleanDir path = 
     let di = DirectoryInfo path
     if di.Exists then 
         try
-            di.Delete(true)
+            DeleteFileSystemInfo di
         with
         | exn -> failwithf "Error during deletion of %s%s  - %s" di.FullName Environment.NewLine exn.Message 
     createDir path |> returnOrFail

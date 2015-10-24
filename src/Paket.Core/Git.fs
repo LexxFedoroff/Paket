@@ -9,6 +9,10 @@ type GitLink = {
     Name: string
 }
 
+type GitLink with
+    static member Empty
+         with get() = { Url = ""; Name = "" }
+
 let private parseHash (branch, output:string):string =
     let split = output.Split ([|'\n'; '\r'|], StringSplitOptions.RemoveEmptyEntries)
     let find = split |> Array.map (fun line -> line.Split([|' '; '\t'|], StringSplitOptions.RemoveEmptyEntries )) |> Array.tryFind (fun line -> line.[1].Contains branch)
