@@ -62,15 +62,12 @@ let rec private followODataLink auth url =
     }
 
 
-
 let tryGetAllVersionsFromNugetODataWithFilter (auth, nugetURL, package:PackageName) = 
     async { 
         try 
-            let sw = System.Diagnostics.Stopwatch.StartNew()
             let url = sprintf "%s/Packages?$filter=Id eq '%O'" nugetURL package
             verbosefn "getAllVersionsFromNugetODataWithFilter from url '%s'" url
             let! result = followODataLink auth url
-            traceVerbose <| sprintf "PERF: ODataWithFilter %O: %dms" package sw.ElapsedMilliseconds
             return Some result
         with _ -> return None
     }
@@ -78,18 +75,15 @@ let tryGetAllVersionsFromNugetODataWithFilter (auth, nugetURL, package:PackageNa
 let tryGetPackageVersionsViaOData (auth, nugetURL, package:PackageName) = 
     async { 
         try 
-            let sw = System.Diagnostics.Stopwatch.StartNew()
             let url = sprintf "%s/FindPackagesById()?id='%O'" nugetURL package
             verbosefn "getAllVersionsFromNugetOData from url '%s'" url
             let! result = followODataLink auth url
-            traceVerbose <| sprintf "PERF: OData %O: %dms" package sw.ElapsedMilliseconds
             return Some result
         with _ -> return None
     }
 
 let tryGetPackageVersionsViaJson (auth, nugetURL, package:PackageName) = 
     async { 
-        let sw = System.Diagnostics.Stopwatch.StartNew() 
         let url = sprintf "%s/package-versions/%O?includePrerelease=true" nugetURL package
         let! raw = safeGetFromUrl (auth, url, acceptJson)
         
@@ -97,22 +91,18 @@ let tryGetPackageVersionsViaJson (auth, nugetURL, package:PackageName) =
         | None -> return None
         | Some data -> 
             try 
-                traceVerbose <| sprintf "PERF: json %O: %dms" package sw.ElapsedMilliseconds
                 return Some(JsonConvert.DeserializeObject<string []> data)
             with _ -> return None
     }
 
 let tryNuGetV3 (auth, nugetV3Url, package:PackageName) = 
-    async {
-        try
-            let sw = System.Diagnostics.Stopwatch.StartNew()
+    async { 
+        try 
             let! data = NuGetV3.findVersionsForPackage(nugetV3Url, auth, package, true, 100000)
             match data with
             | Some data when Array.isEmpty data -> return None
             | None -> return None
-            | _ -> 
-                traceVerbose <| sprintf "PERF: V3 %O: %dms" package sw.ElapsedMilliseconds
-                return data
+            | _ -> return data
         with exn -> return None
     }
 
@@ -304,7 +294,10 @@ let getDetailsFromNuGet force auth nugetURL (packageName:PackageName) (version:S
 
             errorFile.Delete()
             if invalidCache then
-                File.WriteAllText(cacheFile.FullName,JsonConvert.SerializeObject(details))
+                try
+                    File.WriteAllText(cacheFile.FullName,JsonConvert.SerializeObject(details))
+                with
+                | _ -> () // if caching fails we should not fail
             return details
         with
         | exn -> 
@@ -393,8 +386,19 @@ let ExtractPackage(fileName:string, targetFolder, packageName:PackageName, versi
         else
             Directory.CreateDirectory(targetFolder) |> ignore
 
-            fixArchive fileName
-            ZipFile.ExtractToDirectory(fileName, targetFolder)
+            try
+                fixArchive fileName
+                ZipFile.ExtractToDirectory(fileName, targetFolder)
+            with
+            | exn ->
+                let text = ref ""
+                try
+                    text := File.ReadAllText(fileName)
+                with
+                | _ -> ()
+
+                let text = if !text = "" then "" else sprintf " Package contains text: %s%s" !text Environment.NewLine
+                failwithf "Error during extraction of %s.%s%s Message: %s" (Path.GetFullPath fileName) Environment.NewLine text exn.Message
 
             // cleanup folder structure
             let rec cleanup (dir : DirectoryInfo) = 
@@ -539,6 +543,10 @@ let DownloadPackage(root, auth, url, groupName, packageName:PackageName, version
                     bytesRead := bytes
                     do! fileStream.AsyncWrite(buffer, 0, !bytesRead)
 
+                match (httpResponse :?> HttpWebResponse).StatusCode with
+                | HttpStatusCode.OK -> ()
+                | statusCode -> failwithf "HTTP status code was %d - %O" (int statusCode) statusCode
+
                 try
                     do! license
                 with
@@ -654,13 +662,16 @@ let GetVersions root (sources, packageName:PackageName) =
 
                         v2Feeds @ v3Feeds
                    | LocalNuget path -> [ getAllVersionsFromLocalPath (path, packageName, root) ])
-        |> List.concat
-        |> Async.Choice'
+        |> Seq.toArray
+        |> Array.map Async.Choice'
+        |> Async.Parallel
         |> Async.RunSynchronously
+        |> Array.choose id
+        |> Array.concat
 
     let versions = 
         match v with
-        | Some versions when Array.isEmpty versions |> not -> versions
+        | versions when Array.isEmpty versions |> not -> versions
         | _ -> failwithf "Could not find versions for package %O in any of the sources in %A." packageName sources
 
     versions

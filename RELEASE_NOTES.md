@@ -1,8 +1,18 @@
-#### 2.15.6 - 19.10.2015
-* Log Request performance
+#### 2.17.1 - 24.10.2015
+* Reintroduce missing public API functions for docs
 
-#### 2.15.5 - 19.10.2015
+#### 2.17.0 - 24.10.2015
+* Global "oldest matching version" resolver strategy option - http://fsprojects.github.io/Paket/dependencies-file.html#Strategy-option
+* Convert-from-nuget and simplify commands simplify framework restrictions if possible - https://github.com/fsprojects/Paket/pull/1159
+* BUGFIX: Queries every NuGet feed in parallel and combines the results - https://github.com/fsprojects/Paket/pull/1163
+* USABILITY: Give better error message when a file can't be found on a github repo - https://github.com/fsprojects/Paket/issues/1162
+
+#### 2.16.0 - 21.10.2015
+* Check that download http status code was 200
+* Try to report better error when file is blocked by Firewall - https://github.com/fsprojects/Paket/pull/1155
 * BUGFIX: Fixed loading of Project files on mono - https://github.com/fsprojects/Paket/pull/1149
+* PERFORMANCE: Caching proxy scheme - https://github.com/fsprojects/Paket/pull/1153
+* USABILITY: If caching fails Paket should recover - https://github.com/fsprojects/Paket/issues/1152
 
 #### 2.15.1 - 17.10.2015
 * BUGFIX: Fixed framework restriction filter - https://github.com/fsprojects/Paket/pull/1146

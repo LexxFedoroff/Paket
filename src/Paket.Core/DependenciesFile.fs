@@ -14,16 +14,18 @@ open Paket.PackageSources
 type InstallOptions = 
     { Strict : bool 
       Redirects : bool
+      ResolverStrategy : ResolverStrategy option
       Settings : InstallSettings }
 
     static member Default = { 
         Strict = false
         Redirects = false
+        ResolverStrategy = None
         Settings = InstallSettings.Default }
 
 type VersionStrategy = {
     VersionRequirement : VersionRequirement
-    ResolverStrategy : ResolverStrategy }
+    ResolverStrategy : ResolverStrategy option }
 
 type DependenciesGroup = {
     Name: GroupName
@@ -45,7 +47,8 @@ type DependenciesGroup = {
               Options = 
                 { Redirects = this.Options.Redirects || other.Options.Redirects
                   Settings = this.Options.Settings + other.Options.Settings
-                  Strict = this.Options.Strict || other.Options.Strict }
+                  Strict = this.Options.Strict || other.Options.Strict
+                  ResolverStrategy = this.Options.ResolverStrategy ++ other.Options.ResolverStrategy }
               Sources = this.Sources @ other.Sources |> List.distinct
               Packages = this.Packages @ other.Packages
               RemoteFiles = this.RemoteFiles @ other.RemoteFiles }
@@ -54,9 +57,22 @@ type DependenciesGroup = {
 module DependenciesFileParser = 
 
     let private basicOperators = ["~>";"==";"<=";">=";"=";">";"<"]
-    let private operators = basicOperators @ (basicOperators |> List.map (fun o -> "!" + o))
+    let private strategyOperators = ['!';'@']
+    let private operators =
+        basicOperators
+        @ (basicOperators |> List.map (fun o -> strategyOperators |> List.map (fun s -> string s + o)) |> List.concat)
 
-    let parseResolverStrategy (text : string) = if text.StartsWith "!" then ResolverStrategy.Min else ResolverStrategy.Max
+    let (|NuGetStrategy|PaketStrategy|NoStrategy|) (text : string) =
+        match text |> Seq.tryHead with
+        | Some('!') -> NuGetStrategy
+        | Some('@') -> PaketStrategy
+        | _ -> NoStrategy
+
+    let parseResolverStrategy (text : string) = 
+        match text with
+        | NuGetStrategy -> Some ResolverStrategy.Min
+        | PaketStrategy -> Some ResolverStrategy.Max
+        | NoStrategy -> None
 
     let twiddle(minimum:string) =
         let promote index (values:string array) =
@@ -187,6 +203,7 @@ module DependenciesFileParser =
     | CopyLocal of bool
     | ReferenceCondition of string
     | Redirects of bool
+    | ResolverStrategy of ResolverStrategy option
 
     let private (|Remote|Package|Empty|ParserOptions|SourceFile|Group|) (line:string) =
         match line.Trim() with
@@ -215,6 +232,14 @@ module DependenciesFileParser =
             | _ -> failwithf "could not retrieve nuget package from %s" trimmed
         | String.StartsWith "references" trimmed -> ParserOptions(ParserOption.ReferencesMode(trimmed.Replace(":","").Trim() = "strict"))
         | String.StartsWith "redirects" trimmed -> ParserOptions(ParserOption.Redirects(trimmed.Replace(":","").Trim() = "on"))
+        | String.StartsWith "strategy" trimmed -> 
+            let setting =
+                match trimmed.Replace(":","").Trim().ToLowerInvariant() with
+                | "max" -> Some ResolverStrategy.Max
+                | "min" -> Some ResolverStrategy.Min
+                | _ -> None
+
+            ParserOptions(ParserOption.ResolverStrategy(setting))
         | String.StartsWith "framework" trimmed -> ParserOptions(ParserOption.FrameworkRestrictions(trimmed.Replace(":","").Trim() |> Requirements.parseRestrictions))
         | String.StartsWith "content" trimmed -> 
             let setting =
@@ -260,7 +285,7 @@ module DependenciesFileParser =
           ResolverStrategy = parseResolverStrategy version
           Parent = parent
           Settings = InstallSettings.Parse(optionsText).AdjustWithSpecialCases packageName
-          VersionRequirement = parseVersionRequirement((version + " " + prereleases).Trim '!') } 
+          VersionRequirement = parseVersionRequirement((version + " " + prereleases).Trim(strategyOperators |> Array.ofList)) } 
 
     let parsePackageLine(sources,parent,line:string) =
         match line with 
@@ -271,6 +296,7 @@ module DependenciesFileParser =
         match options with 
         | ReferencesMode mode -> { current.Options with Strict = mode } 
         | Redirects mode -> { current.Options with Redirects = mode }
+        | ResolverStrategy strategy -> { current.Options with ResolverStrategy = strategy }
         | CopyLocal mode -> { current.Options with Settings = { current.Options.Settings with CopyLocal = Some mode } }
         | ImportTargets mode -> { current.Options with Settings = { current.Options.Settings with ImportTargets = Some mode } }
         | FrameworkRestrictions r -> { current.Options with Settings = { current.Options.Settings with FrameworkRestrictions = r } }
@@ -313,14 +339,16 @@ module DependenciesFileParser =
         fileName, groups, lines
     
     let parseVersionString (version : string) = 
-        { VersionRequirement = parseVersionRequirement (version.Trim '!')
+        { VersionRequirement = parseVersionRequirement (version.Trim(strategyOperators |> Array.ofList))
           ResolverStrategy = parseResolverStrategy version }
 
 module DependenciesFileSerializer = 
     let formatVersionRange strategy (version : VersionRequirement) : string =
         let prefix = 
-            if strategy = ResolverStrategy.Min then "!"
-            else ""
+            match strategy with
+            | Some ResolverStrategy.Min -> "!"
+            | Some ResolverStrategy.Max -> "@"
+            | None -> ""
 
         let preReleases = 
             match version.PreReleases with
@@ -330,11 +358,11 @@ module DependenciesFileSerializer =
             
         let version = 
             match version.Range with
-            | Minimum x when strategy = ResolverStrategy.Max && x = SemVer.Parse "0" -> ""
+            | Minimum x when strategy = None && x = SemVer.Parse "0" -> ""
             | Minimum x -> ">= " + x.ToString()
             | GreaterThan x -> "> " + x.ToString()
-            | Specific x when strategy = ResolverStrategy.Min -> "= " + x.ToString()
-            | Specific x -> x.ToString()
+            | Specific x when strategy = None -> x.ToString()
+            | Specific x -> "= " + x.ToString()
             | VersionRange.Range(_, from, _, _) 
                     when DependenciesFileParser.parseVersionRequirement ("~> " + from.ToString() + preReleases) = version -> 
                         "~> " + from.ToString()
@@ -406,6 +434,32 @@ type DependenciesFile(fileName,groups:Map<GroupName,DependenciesGroup>, textRepr
 
     member __.Groups = groups
 
+    member this.SimplifyFrameworkRestrictions() = 
+        let transform (dependenciesFile:DependenciesFile) (group:DependenciesGroup) =
+            if group.Options.Settings.FrameworkRestrictions <> [] then dependenciesFile else
+            match group.Packages with
+            | [] -> dependenciesFile
+            | package::rest ->
+                let commonRestrictions =
+                    package.Settings.FrameworkRestrictions
+                    |> List.filter (fun r -> rest |> Seq.forall (fun p' -> p'.Settings.FrameworkRestrictions |> List.contains r))
+
+                match commonRestrictions with
+                | [] -> dependenciesFile
+                | _ ->
+                    let newDependenciesFile = dependenciesFile.AddFrameworkRestriction(group.Name,commonRestrictions)
+                    group.Packages
+                     |> List.fold (fun (d:DependenciesFile) package ->
+                            let oldRestrictions = package.Settings.FrameworkRestrictions
+                            let newRestrictions = oldRestrictions |> List.filter (fun r -> commonRestrictions |> List.contains r |> not)
+                            if oldRestrictions = newRestrictions then d else
+                            let (d:DependenciesFile) = d.Remove(group.Name,package.Name)
+                            d.Add(group.Name,package.Name,package.VersionRequirement.ToString(),{ package.Settings with FrameworkRestrictions = newRestrictions })) newDependenciesFile
+
+        this.Groups
+        |> Seq.map (fun kv -> kv.Value)
+        |> Seq.fold transform this
+
     member this.GetGroup groupName =
         match this.Groups |> Map.tryFind groupName with
         | Some g -> g
@@ -438,7 +492,7 @@ type DependenciesFile(fileName,groups:Map<GroupName,DependenciesGroup>, textRepr
                 |> Seq.map (fun (n, v) -> 
                         { Name = n
                           VersionRequirement = v
-                          ResolverStrategy = ResolverStrategy.Max
+                          ResolverStrategy = Some ResolverStrategy.Max
                           Parent = PackageRequirementSource.DependenciesFile fileName
                           Settings = group.Options.Settings })
                 |> Seq.toList
@@ -449,6 +503,7 @@ type DependenciesFile(fileName,groups:Map<GroupName,DependenciesGroup>, textRepr
                     group.Sources,
                     getVersionF, 
                     getPackageDetailsF, 
+                    group.Options.ResolverStrategy,
                     group.Options.Settings.FrameworkRestrictions,
                     remoteDependencies @ group.Packages |> Set.ofList,
                     updateMode)
@@ -456,6 +511,29 @@ type DependenciesFile(fileName,groups:Map<GroupName,DependenciesGroup>, textRepr
 
         groupsToResolve
         |> Map.map resolveGroup 
+
+
+    member private this.AddFrameworkRestriction(groupName, frameworkRestrictions:FrameworkRestrictions) =
+        if frameworkRestrictions = [] then this else
+        let restrictionString = sprintf "framework %s" (String.Join(", ",frameworkRestrictions))
+
+        let list = new System.Collections.Generic.List<_>()
+        list.AddRange textRepresentation
+
+        match groups |> Map.tryFind groupName with 
+        | None -> list.Add(restrictionString)
+        | Some group ->
+            let firstGroupLine,_ = findGroupBorders groupName
+            let pos = ref firstGroupLine
+            while list.Count > !pos && list.[!pos].TrimStart().StartsWith "source" do
+                pos := !pos + 1
+
+            list.Insert(!pos,restrictionString)
+       
+        DependenciesFile(
+            list 
+            |> Seq.toArray
+            |> DependenciesFileParser.parseDependenciesFile fileName)
 
     member __.AddAdditionalPackage(groupName, packageName:PackageName,versionRequirement,resolverStrategy,settings,?pinDown) =
         let pinDown = defaultArg pinDown false
