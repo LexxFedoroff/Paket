@@ -72,9 +72,10 @@ let rec private DeleteFileSystemInfo (fileSystemInfo:FileSystemInfo) =
     | :? DirectoryInfo as directoryInfo ->
         for childInfo in directoryInfo.GetFileSystemInfos() do
             DeleteFileSystemInfo(childInfo)
-    | _ -> 
-        fileSystemInfo.Attributes <- FileAttributes.Normal;
-        fileSystemInfo.Delete();
+    | _ -> ignore()
+
+    fileSystemInfo.Attributes <- FileAttributes.Normal;
+    fileSystemInfo.Delete();
 
 /// Cleans a directory by deleting it and recreating it.
 let CleanDir path = 
@@ -84,7 +85,7 @@ let CleanDir path =
             DeleteFileSystemInfo di
         with
         | exn -> failwithf "Error during deletion of %s%s  - %s" di.FullName Environment.NewLine exn.Message 
-    createDir path |> returnOrFail
+    createDir path |> returnOrFail // FIXME После удаления остается корневая папка, которая все портит
     // set writeable
     File.SetAttributes(path, FileAttributes.Normal)
 

@@ -48,7 +48,7 @@
     <StartWorkingDirectory>d:\code\paketrepro</StartWorkingDirectory>
     <StartWorkingDirectory>d:\code\paketbug</StartWorkingDirectory>
     <StartWorkingDirectory>E:\TMP\PaketTestRepo\</StartWorkingDirectory>
-    <StartWorkingDirectory>D:\code\coreclr-demo</StartWorkingDirectory>
+    <StartWorkingDirectory>E:\TMP\PaketTestRepo\</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>

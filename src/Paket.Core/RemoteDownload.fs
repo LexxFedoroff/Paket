@@ -175,10 +175,8 @@ let downloadRemoteFiles(remoteFile:ResolvedSourceFile,destination) = async {
 
         let source = Path.Combine(projectPath, sprintf "%s-%s" remoteFile.Project remoteFile.Commit)
         DirectoryCopy(source,projectPath,true)
-    | SingleSourceFileOrigin.GitLink url, Constants.FullProjectSourceFileName -> 
-        System.Diagnostics.Debugger.Break()
-    | SingleSourceFileOrigin.GitLink url, _ -> 
-        failwith "FIXME"
+    | SingleSourceFileOrigin.GitLink link, _ -> 
+        Git.clone link remoteFile.Commit
     | SingleSourceFileOrigin.GistLink, _ -> 
         let downloadUrl = rawGistFileUrl remoteFile.Owner remoteFile.Project remoteFile.Name
         let authentication = auth remoteFile.AuthKey downloadUrl

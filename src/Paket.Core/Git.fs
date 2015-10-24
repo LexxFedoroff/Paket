@@ -28,7 +28,7 @@ type private Repo(project, url) =
             failwithf "git exit code: %i. Error: %s" res.exitCode res.stderr
         res.stdout
     
-    let executeCommand command =
+    let executeCommand setWD command =
         let mutable proc = null
         try
             let psi = new System.Diagnostics.ProcessStartInfo("git.exe", command) 
@@ -36,7 +36,7 @@ type private Repo(project, url) =
             psi.RedirectStandardOutput <- true
             psi.RedirectStandardError <- true
             psi.CreateNoWindow <- true
-            if IO.Directory.Exists projectDir then
+            if setWD && IO.Directory.Exists projectDir then
                 psi.WorkingDirectory <- projectDir
             proc <- System.Diagnostics.Process.Start(psi)
             let output = new System.Text.StringBuilder()
@@ -52,17 +52,17 @@ type private Repo(project, url) =
                 proc.Dispose()
 
     let clone url target =
-        sprintf "clone %s %s" url target |> executeCommand |> log
+        sprintf "clone %s %s" url target |> executeCommand false |> log
 
     member self.lsRemote =
-        sprintf "ls-remote %s" url |> executeCommand |> log
+        sprintf "ls-remote %s" url |> executeCommand true |> log
 
     member self.tryClone =
-        if not (IO.Directory.Exists projectDir) then
+        if not (IO.Directory.Exists (projectDir + "/.git")) then
             clone url projectDir |> ignore
     
     member self.checkout branch =
-        sprintf "checkout -f %s" branch |> executeCommand |> log
+        sprintf "checkout -f %s" branch |> executeCommand true |> log
 
     member self.readFile fileName =
         let path = IO.Path.Combine (projectDir, fileName)
@@ -81,3 +81,8 @@ let getFile (link:GitLink, branch, fileName) = async {
     repo.checkout branch |> ignore
     return repo.readFile fileName
 }
+
+let clone (link:GitLink) branch = 
+    let repo = Repo(link.Name, link.Url)
+    repo.tryClone
+    repo.checkout branch |> ignore
