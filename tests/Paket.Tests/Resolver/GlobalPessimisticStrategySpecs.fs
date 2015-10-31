@@ -45,7 +45,7 @@ let ``should resolve simple config2``() =
     let resolved =
         DependenciesFile.FromCode(config2)
         |> resolve graph UpdateMode.UpdateAll
-    getVersion resolved.[PackageName "Castle.Windsor"] |> shouldEqual "3.3.0"
+    getVersion resolved.[PackageName "Castle.Windsor"] |> shouldEqual "3.2.1"
     getVersion resolved.[PackageName "Nancy.Bootstrappers.Windsor"] |> shouldEqual "0.23"
 
 
@@ -62,7 +62,7 @@ let ``should resolve simple config3``() =
     let resolved =
         DependenciesFile.FromCode(config3)
         |> resolve graph UpdateMode.UpdateAll
-    getVersion resolved.[PackageName "Castle.Windsor"] |> shouldEqual "3.3.0"
+    getVersion resolved.[PackageName "Castle.Windsor"] |> shouldEqual "3.2.1"
     getVersion resolved.[PackageName "Nancy.Bootstrappers.Windsor"] |> shouldEqual "0.23"
 
 
@@ -123,41 +123,61 @@ nuget Castle.Windsor-NLog !~> 3.2
 """
 
 [<Test>]
-let ``should update to lastest when updating all``() = 
+let ``should favor strategy override when updating all``() = 
     let resolved =
         DependenciesFile.FromCode(config6)
         |> resolve graph2 UpdateMode.UpdateAll
     getVersion resolved.[PackageName "Castle.Windsor-NLog"] |> shouldEqual "3.3.0"
-    getVersion resolved.[PackageName "Castle.Core-NLog"] |> shouldEqual "3.3.1"
+    getVersion resolved.[PackageName "Castle.Core-NLog"] |> shouldEqual "3.3.0"
     getVersion resolved.[PackageName "Castle.Core"] |> shouldEqual "3.3.1"
 
 [<Test>]
 let ``should respect overrides when updating single package``() = 
     let resolved =
         DependenciesFile.FromCode(config6)
-        |> resolve graph2 (UpdateMode.UpdatePackage(Constants.MainDependencyGroup, PackageName "Castle.Windsor-NLog"))
+        |> resolve graph2 (UpdateMode.UpdateFiltered(Constants.MainDependencyGroup, PackageName "Castle.Windsor-NLog" |> PackageFilter.ofName))
     getVersion resolved.[PackageName "Castle.Windsor-NLog"] |> shouldEqual "3.3.0"
     getVersion resolved.[PackageName "Castle.Core-NLog"] |> shouldEqual "3.3.0"
     getVersion resolved.[PackageName "Castle.Core"] |> shouldEqual "3.3.1"
 
-let config7 = """
-strategy min
-source http://nuget.org/api/v2
-
-nuget Nancy.Bootstrappers.Windsor @~> 0.23
-nuget Castle.Windsor
-nuget Castle.Windsor-NLog @> 0
-"""
-
 [<Test>]
-let ``should favor strategy from parent``() = 
+let ``should favor strategy from parent when it overrides``() = 
+    let config = """
+    strategy min
+    source http://nuget.org/api/v2
+
+    nuget Nancy.Bootstrappers.Windsor @~> 0.23
+    nuget Castle.Windsor !> 0
+    nuget Castle.Windsor-NLog @> 0
+    """
+
     let resolved =
-        DependenciesFile.FromCode(config7)
+        DependenciesFile.FromCode(config)
         |> resolve graph2 UpdateMode.UpdateAll
     getVersion resolved.[PackageName "Castle.Windsor"] |> shouldEqual "3.3.0"
     getVersion resolved.[PackageName "Castle.Windsor-NLog"] |> shouldEqual "3.3.0"
     getVersion resolved.[PackageName "Castle.Core-NLog"] |> shouldEqual "3.3.0"
     getVersion resolved.[PackageName "Castle.Core"] |> shouldEqual "3.3.0"
+    getVersion resolved.[PackageName "Nancy.Bootstrappers.Windsor"] |> shouldEqual "0.23"
+
+[<Test>]
+let ``should favor strategy from parent that overrides strategy``() = 
+    let config = """
+    strategy min
+    source http://nuget.org/api/v2
+
+    nuget Nancy.Bootstrappers.Windsor @~> 0.23
+    nuget Castle.Windsor
+    nuget Castle.Windsor-NLog @> 0
+    """
+
+    let resolved =
+        DependenciesFile.FromCode(config)
+        |> resolve graph2 UpdateMode.UpdateAll
+    getVersion resolved.[PackageName "Castle.Windsor"] |> shouldEqual "3.3.0"
+    getVersion resolved.[PackageName "Castle.Windsor-NLog"] |> shouldEqual "3.3.0"
+    getVersion resolved.[PackageName "Castle.Core-NLog"] |> shouldEqual "3.3.1"
+    getVersion resolved.[PackageName "Castle.Core"] |> shouldEqual "3.3.1"
     getVersion resolved.[PackageName "Nancy.Bootstrappers.Windsor"] |> shouldEqual "0.23"
 
 let config8 = """

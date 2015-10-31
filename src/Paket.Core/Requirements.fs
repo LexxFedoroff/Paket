@@ -85,7 +85,7 @@ let rec optimizeRestrictions restrictions =
         let newRestrictions' = 
             restrictions
             |> List.distinct
-            |> List.sort                            
+            |> List.sort
 
         let newRestrictions =
             match newRestrictions' |> Seq.tryFind (function | FrameworkRestriction.AtLeast r -> true | _ -> false) with
@@ -94,7 +94,7 @@ let rec optimizeRestrictions restrictions =
                 let currentVersion =
                     match r with
                     | FrameworkRestriction.AtLeast(DotNetFramework(x)) -> x
-                    | x -> failwithf "Unknown .NET moniker %O" x     
+                    | x -> failwithf "Unknown .NET moniker %O" x
                                                                                                            
                 let isLowerVersion x =
                     let isMatching x =
@@ -115,7 +115,7 @@ let rec optimizeRestrictions restrictions =
                         match n with
                         | FrameworkRestriction.Exactly(DotNetFramework(x)) -> x
                         | FrameworkRestriction.AtLeast(DotNetFramework(x)) -> x
-                        | x -> failwithf "Unknown .NET moniker %O" x     
+                        | x -> failwithf "Unknown .NET moniker %O" x
 
                     (newRestrictions'
                         |> List.filter (fun x -> x <> r && x <> n)) @ [FrameworkRestriction.AtLeast(DotNetFramework(newLowest))]
@@ -166,7 +166,7 @@ let optimizeDependencies packages =
                     |> List.sort
 
                 let localMaxDotNetRestriction = findMaxDotNetRestriction plain
-                let globalMax = defaultArg globalMax localMaxDotNetRestriction          
+                let globalMax = defaultArg globalMax localMaxDotNetRestriction
 
                 let dotnetRestrictions,others = List.partition (function | FrameworkRestriction.Exactly(DotNetFramework(_)) -> true | FrameworkRestriction.AtLeast(DotNetFramework(_)) -> true | _ -> false) plain
 
@@ -174,7 +174,7 @@ let optimizeDependencies packages =
                     dotnetRestrictions
                     |> List.map (fun restriction ->
                         match restriction with
-                        | FrameworkRestriction.Exactly r ->                     
+                        | FrameworkRestriction.Exactly r ->
                             if r = localMaxDotNetRestriction && r = globalMax then
                                 FrameworkRestriction.AtLeast r
                             else
@@ -396,21 +396,16 @@ type RemoteFileInstallSettings =
 
 type PackageRequirementSource =
 | DependenciesFile of string
-| Package of PackageName * SemVerInfo * int
+| Package of PackageName * SemVerInfo
     member this.IsRootRequirement() =
         match this with
         | DependenciesFile _ -> true
         | _ -> false
 
-    member this.Depth() =
-        match this with
-        | DependenciesFile _ -> 0
-        | Package(_,_,x) -> x
-
     override this.ToString() =
         match this with
         | DependenciesFile x -> x
-        | Package(name,version,_) ->
+        | Package(name,version) ->
           sprintf "%O %O" name version
 
 /// Represents an unresolved package.
@@ -420,6 +415,7 @@ type PackageRequirement =
       VersionRequirement : VersionRequirement
       ResolverStrategy : ResolverStrategy option
       Parent: PackageRequirementSource
+      Graph: PackageRequirement list
       Settings: InstallSettings }
 
     override this.Equals(that) = 
@@ -435,15 +431,17 @@ type PackageRequirement =
     member this.IncludingPrereleases() = 
         { this with VersionRequirement = VersionRequirement(this.VersionRequirement.Range,PreReleaseStatus.All) }
     
-    static member Compare(x,y,startWithPackage:PackageName option,boostX,boostY) =
+    member this.Depth = this.Graph.Length
+
+    static member Compare(x,y,startWithPackage:PackageFilter option,boostX,boostY) =
         if x = y then 0 else
         seq {
             yield compare
-                (not x.VersionRequirement.Range.IsGlobalOverride,x.Parent)
-                (not y.VersionRequirement.Range.IsGlobalOverride,y.Parent)
+                (not x.VersionRequirement.Range.IsGlobalOverride,x.Depth)
+                (not y.VersionRequirement.Range.IsGlobalOverride,y.Depth)
             yield match startWithPackage with
-                    | Some name when name = x.Name -> -1
-                    | Some name when name = y.Name -> 1
+                    | Some filter when filter.Match x.Name -> -1
+                    | Some filter when filter.Match y.Name -> 1
                     | _ -> 0
             yield -compare x.ResolverStrategy y.ResolverStrategy
             yield compare boostX boostY

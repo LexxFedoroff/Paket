@@ -39,6 +39,7 @@
     <StartArguments>install</StartArguments>
     <StartArguments>update -v</StartArguments>
     <StartArguments>update</StartArguments>
+    <StartArguments>update --keep-minor</StartArguments>
     <StartAction>Project</StartAction>
     <StartProgram>paket.exe</StartProgram>
     <StartWorkingDirectory>c:\code\Paketkopie</StartWorkingDirectory>
@@ -49,6 +50,7 @@
     <StartWorkingDirectory>d:\code\paketbug</StartWorkingDirectory>
     <StartWorkingDirectory>E:\TMP\PaketTestRepo\</StartWorkingDirectory>
     <StartWorkingDirectory>E:\TMP\PaketTestRepo\</StartWorkingDirectory>
+    <StartWorkingDirectory>D:\code\Paket\integrationtests\scenarios\i001125-update-and-keep-minor\temp</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>

@@ -1,5 +1,19 @@
-#### 2.17.1 - 24.10.2015
-* Reintroduce missing public API functions for docs
+#### 2.20.0 - 30.10.2015
+* Allow filtered updates of packages matching a regex - https://github.com/fsprojects/Paket/pull/1178
+* Search for paket.references in startup directory (auto-restore feature) - https://github.com/fsprojects/Paket/pull/1179
+* BUGFIX: Framework filtering for transisitve packages - https://github.com/fsprojects/Paket/issues/1182
+
+#### 2.19.0 - 29.10.2015
+* Resolver changed to breadth first search to escape more quickly from conflict situations - https://github.com/fsprojects/Paket/issues/1174
+* Paket init downloads stable version of bootstraper - https://github.com/fsprojects/Paket/issues/1040
+* BUGFIX: SemVer updates were broken
+
+#### 2.18.0 - 28.10.2015
+* Use branch and bound strategy to escape quickly from conflict situations - https://github.com/fsprojects/Paket/issues/1169
+* Queries all feeds in parallel for package details
+* New moniker monoandroid50 - https://github.com/fsprojects/Paket/pull/1171
+* Reintroduced missing public API functions for docs
+* USABILITY: Improved paket's conflict reporting during resolution time - https://github.com/fsprojects/Paket/pull/1168
 
 #### 2.17.0 - 24.10.2015
 * Global "oldest matching version" resolver strategy option - http://fsprojects.github.io/Paket/dependencies-file.html#Strategy-option

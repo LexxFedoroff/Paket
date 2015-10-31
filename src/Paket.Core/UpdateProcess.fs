@@ -48,9 +48,9 @@ let selectiveUpdate force getSha1 getSortedVersionsF getPackageDetailsF (lockFil
 
         match semVerUpdateMode with
         | SemVerUpdateMode.NoRestriction -> dependenciesFile
-        | SemVerUpdateMode.KeepMajor -> processFile (fun v -> sprintf "~> %d" v.Major + formatPrerelease v)
-        | SemVerUpdateMode.KeepMinor -> processFile (fun v -> sprintf "~> %d.%d" v.Major v.Minor + formatPrerelease v)
-        | SemVerUpdateMode.KeepPatch -> processFile (fun v -> sprintf "~> %d.%d.%d" v.Major v.Minor v.Patch + formatPrerelease v)
+        | SemVerUpdateMode.KeepMajor -> processFile (fun v -> sprintf "~> %d.%d" v.Major v.Minor + formatPrerelease v)
+        | SemVerUpdateMode.KeepMinor -> processFile (fun v -> sprintf "~> %d.%d.%d" v.Major v.Minor v.Patch + formatPrerelease v)
+        | SemVerUpdateMode.KeepPatch -> processFile (fun v -> sprintf "~> %d.%d.%d.%s" v.Major v.Minor v.Patch v.Build + formatPrerelease v)
 
     let getVersionsF,groupsToUpdate =
         let changes,groups =
@@ -67,6 +67,19 @@ let selectiveUpdate force getSha1 getSortedVersionsF getPackageDetailsF (lockFil
                     lockFile.GetGroupedResolution()
                     |> Seq.map (fun k -> k.Key)
                     |> Seq.filter (fun (g,_) -> g = groupName)
+                    |> Set.ofSeq
+
+                let groups =
+                    dependenciesFile.Groups
+                    |> Map.filter (fun k _ -> k = groupName)
+
+                changes,groups
+            | UpdateFiltered (groupName, filter) ->
+                let changes =
+                    lockFile.GetGroupedResolution()
+                    |> Seq.map (fun k -> k.Key)
+                    |> Seq.filter (fun (g,_) -> g = groupName)
+                    |> Seq.filter (fun (_, p) -> filter.Match p)
                     |> Set.ofSeq
 
                 let groups =
@@ -116,16 +129,6 @@ let selectiveUpdate force getSha1 getSortedVersionsF getPackageDetailsF (lockFil
                     |> Map.filter hasChanges
 
                 nuGetChanges,groups
-            | UpdatePackage(groupName,packageName) ->
-                let changes =
-                    lockFile.GetAllNormalizedDependenciesOf(groupName,packageName)
-                    |> Set.ofSeq
-
-                let groups =
-                    dependenciesFile.Groups
-                    |> Map.filter (fun key _ -> key = groupName)
-
-                changes,groups
 
         let preferredVersions = 
             DependencyChangeDetection.GetPreferredNuGetVersions lockFile
@@ -200,7 +203,24 @@ let UpdatePackage(dependenciesFileName, groupName, packageName : PackageName, ne
             tracefn "Updating %O in %s group %O" packageName dependenciesFileName groupName
             dependenciesFile
 
-    SmartInstall(dependenciesFile, UpdatePackage(groupName,packageName), options)
+    let filter = PackageFilter.ofName packageName
+
+    SmartInstall(dependenciesFile, UpdateFiltered(groupName,filter), options)
+
+/// Update a filtered list of packages
+let UpdateFilteredPackages(dependenciesFileName, groupName, packageName : PackageName, newVersion, options : UpdaterOptions) =
+    let dependenciesFile = DependenciesFile.ReadFromFile(dependenciesFileName)
+
+    let filter = PackageFilter <| packageName.ToString()
+
+    let dependenciesFile =
+        match newVersion with
+        | Some v -> dependenciesFile.UpdatePackageVersion(groupName,packageName, v)
+        | None -> 
+            tracefn "Updating %O in %s group %O" packageName dependenciesFileName groupName
+            dependenciesFile
+
+    SmartInstall(dependenciesFile, UpdateFiltered(groupName, filter), options)
 
 /// Update a single group command
 let UpdateGroup(dependenciesFileName, groupName,  options : UpdaterOptions) =
