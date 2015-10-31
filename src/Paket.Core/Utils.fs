@@ -67,25 +67,25 @@ let createDir path =
     with _ ->
         DirectoryCreateError path |> fail
 
-let rec private DeleteFileSystemInfo (fileSystemInfo:FileSystemInfo) =
-    match fileSystemInfo with
-    | :? DirectoryInfo as directoryInfo ->
-        for childInfo in directoryInfo.GetFileSystemInfos() do
-            DeleteFileSystemInfo(childInfo)
-    | _ -> ignore()
-
-    fileSystemInfo.Attributes <- FileAttributes.Normal;
-    fileSystemInfo.Delete();
+let rec private clearAttributes currentDir =
+    if Directory.Exists(currentDir) then
+        let subDirs = Directory.GetDirectories(currentDir)
+        for dir in subDirs do
+            clearAttributes dir
+        let files = Directory.GetFiles(currentDir)
+        for file in files do
+            File.SetAttributes (file, FileAttributes.Normal)
 
 /// Cleans a directory by deleting it and recreating it.
 let CleanDir path = 
     let di = DirectoryInfo path
     if di.Exists then 
         try
-            DeleteFileSystemInfo di
+            clearAttributes path
+            Directory.Delete(path, true)
         with
         | exn -> failwithf "Error during deletion of %s%s  - %s" di.FullName Environment.NewLine exn.Message 
-    createDir path |> returnOrFail // FIXME После удаления остается корневая папка, которая все портит
+    createDir path |> returnOrFail
     // set writeable
     File.SetAttributes(path, FileAttributes.Normal)
 
