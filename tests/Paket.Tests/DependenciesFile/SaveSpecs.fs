@@ -114,8 +114,7 @@ let ``should serialize packet's own config``() =
     |> shouldEqual (normalizeLineEndings ownConfig)
 
 
-let configWithRemoteFile = """
-github fsharp/FAKE:master src/app/FAKE/Cli.fs
+let configWithRemoteFile = """github fsharp/FAKE:master src/app/FAKE/Cli.fs
 github fsharp/FAKE:bla123zxc src/app/FAKE/FileWithCommit.fs
 """
 
