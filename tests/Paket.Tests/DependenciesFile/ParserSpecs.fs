@@ -693,7 +693,7 @@ nuget Caliburn.Micro !~> 2.0.2
 
 
 let configWithInvalidPrereleaseString = """
-    nuget Plossum.CommandLine !0.3.0.14   
+    nuget Plossum.CommandLine !0.3.0.14
 """
 
 [<Test>]
@@ -952,10 +952,11 @@ let ``should read config with combined strategy``() =
 
 [<Test>]
 let ``should read GIT source file from config``() =
-    let config = """
+    let config = 
+        """
         git https://githostring.com/project1.git 
         git https://githostring.com/project2.git branch1
-                 """
+        """
     let dependencies = DependenciesFile.FromCode(config)
     dependencies.Groups.[Constants.MainDependencyGroup].RemoteFiles
     |> shouldEqual

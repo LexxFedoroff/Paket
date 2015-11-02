@@ -100,7 +100,11 @@ nuget DotNetZip ~> 1.9.3
 nuget SourceLink.Fake
 nuget NuGet.CommandLine
 
-github forki/FsUnit FsUnit.fs"""
+github forki/FsUnit FsUnit.fs
+
+git https://git.com/project.git
+git https://git.com/project.git branch1
+"""
 
 [<Test>]
 let ``should serialize packet's own config``() = 
@@ -110,8 +114,10 @@ let ``should serialize packet's own config``() =
     |> shouldEqual (normalizeLineEndings ownConfig)
 
 
-let configWithRemoteFile = """github fsharp/FAKE:master src/app/FAKE/Cli.fs
-github fsharp/FAKE:bla123zxc src/app/FAKE/FileWithCommit.fs"""
+let configWithRemoteFile = """
+github fsharp/FAKE:master src/app/FAKE/Cli.fs
+github fsharp/FAKE:bla123zxc src/app/FAKE/FileWithCommit.fs
+"""
 
 [<Test>]
 let ``should serialize remote files in config``() = 
