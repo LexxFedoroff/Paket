@@ -949,3 +949,25 @@ let ``should read config with combined strategy``() =
     cfg.Groups.[GroupName "Build"].Options.ResolverStrategy |> shouldEqual (Some ResolverStrategy.Max)
 
     cfg.Groups.[Constants.MainDependencyGroup].Sources |> shouldEqual [PackageSource.NugetSource "http://nuget.org/api/v2"]
+
+[<Test>]
+let ``should read GIT source file from config``() =
+    let config = """
+        git https://githostring.com/project1.git 
+        git https://githostring.com/project2.git branch1
+                 """
+    let dependencies = DependenciesFile.FromCode(config)
+    dependencies.Groups.[Constants.MainDependencyGroup].RemoteFiles
+    |> shouldEqual
+        [ { Owner = "OWNER"
+            Project = "PROJECT"
+            Name = "FULLPROJECT"
+            Origin = ModuleResolver.SingleSourceFileOrigin.GitLink { Url = "https://githostring.com/project1.git"; Name = "project1" }
+            Commit = None
+            AuthKey = None }
+          { Owner = "OWNER"
+            Project = "PROJECT"
+            Name = "FULLPROJECT"
+            Origin = ModuleResolver.SingleSourceFileOrigin.GitLink { Url = "https://githostring.com/project2.git"; Name = "project2" }
+            Commit = Some "branch1"
+            AuthKey = None } ]

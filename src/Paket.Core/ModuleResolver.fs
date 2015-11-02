@@ -25,6 +25,12 @@ type UnresolvedSourceFile =
         let name = if this.Name = Constants.FullProjectSourceFileName then "" else " " + this.Name
         match this.Origin with
         | HttpLink url -> sprintf "http %s%s %s" url (defaultArg this.Commit "") this.Name
+        | GitLink link -> 
+            let commit = 
+                match this.Commit with
+                | Some c -> ":" + c
+                | None -> ""
+            sprintf "git %s%s" link.Url commit
         | _ ->
             let link = 
                 match this.Origin with
