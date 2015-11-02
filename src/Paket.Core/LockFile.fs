@@ -216,7 +216,9 @@ module LockFileParser =
                 NugetDependency (trimmed,">= 0")
         | Some "NUGET", trimmed -> NugetPackage trimmed
         | Some "GITHUB", trimmed -> SourceFile(GitHubLink, trimmed)
-        | Some "GIT", trimmed -> SourceFile(GitLink(Git.GitLink.Empty), trimmed)
+        | Some "GIT", trimmed -> 
+            let url = defaultArg state.RemoteUrl ""
+            SourceFile(GitLink({Url = url; Name = System.IO.Path.GetFileNameWithoutExtension url}), trimmed)
         | Some "GIST", trimmed -> SourceFile(GistLink, trimmed)
         | Some "HTTP", trimmed  -> SourceFile(HttpLink(String.Empty), trimmed)
         | Some _, _ -> failwithf "unknown repository type %s." line
@@ -319,6 +321,7 @@ module LockFileParser =
                             | [| filePath; commit; authKey |] -> filePath, commit |> removeBrackets, (Some authKey)
                             | [| filePath; commit |] -> filePath, commit |> removeBrackets, None
                             | _ -> failwith "invalid file source details."
+                        System.Diagnostics.Debugger.Break()
                         { currentGroup with
                             LastWasPackage = false
                             SourceFiles = { Commit = commit

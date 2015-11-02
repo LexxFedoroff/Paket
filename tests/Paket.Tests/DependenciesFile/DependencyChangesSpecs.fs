@@ -444,3 +444,29 @@ github zurb/bower-foundation js/foundation.min.js"""
     let changedDependencies = DependencyChangeDetection.findRemoteFileChangesInDependenciesFile(cfg,lockFile)
     changedDependencies.Count |> shouldEqual 1
     changedDependencies |> Set.filter (fun (g,_) -> g = GroupName "Build") |> Set.count |> shouldEqual 1
+
+[<Test>]
+let ``should detect new git dependency``() = 
+    let lockFileData = """
+NUGET
+  remote: https://nuget.org/api/v2
+  specs:
+    FAKE (4.4.4)
+GIT
+  remote: https://github.com/dahlbyk/posh-git.git
+  specs:
+    FULLPROJECT (fadc4dd3d41b8b87235d3a35c69e6caba95ee637)
+"""
+
+    let after = """source https://www.nuget.org/api/v2
+
+nuget FAKE
+
+git https://github.com/dahlbyk/posh-git.git
+git https://github.com/zurb/bower-foundation.git
+"""
+
+    let cfg = DependenciesFile.FromCode(after)
+    let lockFile = LockFile.Parse("",toLines lockFileData)
+    let changedDependencies = DependencyChangeDetection.findRemoteFileChangesInDependenciesFile(cfg,lockFile)
+    changedDependencies.Count |> shouldEqual 1

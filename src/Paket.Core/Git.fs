@@ -11,7 +11,7 @@ type GitLink = {
 
 type GitLink with
     static member Empty
-         with get() = { Url = ""; Name = "" }
+         with get() = { Url = ""; Name = "" } // FIXME caculate name
 
 let private parseHash (branch, output:string):string =
     let split = output.Split ([|'\n'; '\r'|], StringSplitOptions.RemoveEmptyEntries)
